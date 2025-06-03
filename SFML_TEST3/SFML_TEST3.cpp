@@ -5,6 +5,7 @@
 #include <thread>
 #include <fstream>
 
+//
 #pragma once
 
 #ifdef DLLKOT_EXPORTS
@@ -13,7 +14,7 @@
 #define DLLKOT_API __declspec(dllimport)
 #endif
 
-extern "C" DLLKOT_API void kot();  // Do za³¹czania w SFML_TEST3
+extern "C" DLLKOT_API void kot();  // DLL
 
 
 using namespace std;
