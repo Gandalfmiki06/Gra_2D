@@ -4,6 +4,18 @@
 #include <chrono>
 #include <thread>
 #include <fstream>
+
+#pragma once
+
+#ifdef DLLKOT_EXPORTS
+#define DLLKOT_API __declspec(dllexport)
+#else
+#define DLLKOT_API __declspec(dllimport)
+#endif
+
+extern "C" DLLKOT_API void kot();  // Do za³¹czania w SFML_TEST3
+
+
 using namespace std;
 
 
@@ -36,7 +48,7 @@ public:
     Base()
     {
         cout << "Base object created" << endl;
-     }
+    }
     ~Base()
     {
         cout << "Base object destroyed" << endl;
@@ -48,10 +60,10 @@ class Player : protected Base
 {
 protected:
     double speed;      // horizontal velocity
-    double vertSpeed=0.0;  // vertical velocity
+    double vertSpeed = 0.0;  // vertical velocity
     double jumpForce;
     double accel;
-    bool grounded=false;
+    bool grounded = false;
 
 public:
     Player(double x, double y, double s, double j, double a)
@@ -136,24 +148,41 @@ public:
     void Jump()
     {
         if (grounded) {
-            vertSpeed = -jumpForce;  // Jump upward
-            grounded = false;        // No longer grounded after jump
+            vertSpeed = -jumpForce;
+            grounded = false;
         }
     }
 
-    double X() { return cordX; }
-    double Y() { return cordY; }
-    double X2() { return cordX + playerSizeX; }
-    double Y2() { return cordY + playerSizeY; } // bottom = top + height
+    double X()
+    {
+
+
+        return cordX;
+    }
+    double Y()
+    {
+
+        return cordY;
+    }
+    double X2()
+    {
+
+
+        return cordX + playerSizeX;
+    }
+    double Y2()
+    {
+
+        return cordY + playerSizeY;
+    }
 
     void ResetPlayer()
     {
         cordX = 0.;
-        cordY = 0.;
+        cordY = windowHeight;
         speed = 0;
         vertSpeed = 0;
-        jumpForce = 0.1;
-        accel = 0.01;
+
     }
 
     void SetX(double newX)
@@ -183,7 +212,7 @@ public:
 class Block : protected Base
 {
 
-    
+
 public:
     bool solid;
     Block()
@@ -302,12 +331,19 @@ bool readValuesFromFile(const std::string& filename, int values[16]) {
         else if (ch == 'E' || ch == 'e') {
             values[count++] = 0;
         }
-        // else ignore other characters (spaces, newlines, etc.)
+
     }
 
     if (count < 16) {
         cerr << "File does not contain enough valid letters (X, O, or E).\n";
         return false;
+    }
+
+
+
+    if (values[12] == 1)
+    {
+        throw invalid_argument("Spawn cannot be ocupied by a solid block");
     }
     return true;
 }
@@ -316,11 +352,27 @@ bool readValuesFromFile(const std::string& filename, int values[16]) {
 
 
 
+void updatePlayer(Player gracz)
+{
+
+}
+
+
+
 int main()
 {
     int tab[16];
-    readValuesFromFile("info.txt", tab);
+    try
+    {
 
+        readValuesFromFile("info.txt", tab);
+    }
+    catch (const exception& e)
+    {
+
+        cerr << "Wyjatek: " << e.what() << endl;
+        tab[12] = 0;
+    }
 
     using clock = std::chrono::steady_clock;
 
@@ -328,18 +380,18 @@ int main()
     //x,y,speed,jump,accel
     Player gracz1(0, 400, 0, 0.3, 0.01);
     bool change;
-   
+
     int n = 32;
     Block* Bloki;
-    Bloki = (Block*)malloc(sizeof(Block) *n);
+    Bloki = (Block*)malloc(sizeof(Block) * n);
 
 
-    
-   
 
-    for (int i = 0; i < n-16; i++)
+
+
+    for (int i = 0; i < n - 16; i++)
     {
-        int r = i/4;
+        int r = i / 4;
         if (tab[i] == -1)
         {
             Bloki[i + 16] = Block(100 * (i % 4), 0 + 100 * r, false);
@@ -353,12 +405,12 @@ int main()
             Bloki[i + 16] = Block(1000, 1000, true);
         }
     }
-    
+
 
 
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Gra");
 
-  
+
 
 
     sf::RectangleShape gracz(sf::Vector2f(playerSizeX, playerSizeY));
@@ -366,8 +418,8 @@ int main()
     gracz.setFillColor(sf::Color(255, 255, 255, 128));
 
 
-    
-    
+
+
     {
         //Ramka
         Bloki[0] = Block(0, windowHeight, true); //Ground
@@ -397,7 +449,7 @@ int main()
     {
         auto frame_start = clock::now();
 
-        
+
 
 
 
@@ -451,7 +503,7 @@ int main()
             gracz.setPosition(gracz1.X(), gracz1.Y());
 
         }
-        
+
         else if (GetKeyState('R') & 0x8000)
         {
             gracz1.ResetPlayer();
@@ -462,7 +514,7 @@ int main()
 
         }
 
-        
+
         if (change || gracz1.UpdatePos())
         {
 
@@ -470,7 +522,7 @@ int main()
         }
 
 
-        
+
 
         collision(gracz1, Bloki, n);
 
@@ -484,28 +536,30 @@ int main()
         }
 
         window.clear();
-        
 
-        
+
+
         for (int i = 0; i < n; i++) {
             sf::RectangleShape blockRect(sf::Vector2f(blockSizeX, blockSizeY));
             blockRect.setPosition(Bloki[i].X(), Bloki[i].Y());
             blockRect.setFillColor(Bloki[i].solid ? sf::Color::Blue : sf::Color::Red);
             window.draw(blockRect);
         }
-        /*
-        debugHitbox.setPosition(gracz1.X(), gracz1.Y());
-        window.draw(debugHitbox);
-        */
+
+
+
+
+
+
         window.draw(gracz);
         window.display();
 
 
         auto frame_end = clock::now();
         auto frame_duration = std::chrono::duration_cast<std::chrono::milliseconds>(frame_end - frame_start);
-        
-        
-        
+
+
+
         /*
         if (frame_duration < frame_delay) {
             std::this_thread::sleep_for(frame_delay - frame_duration);
@@ -513,7 +567,9 @@ int main()
         */
 
     }
-    
+
+
+    kot();
     return 0;
 }
 
