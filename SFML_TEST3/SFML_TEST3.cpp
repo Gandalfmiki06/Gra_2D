@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <chrono>
 #include <thread>
+#include <fstream>
 using namespace std;
 
 
@@ -22,6 +23,7 @@ double playerSizeX = 25;
 double playerSizeY = 25;
 
 class Block;
+
 class Base
 {
 
@@ -41,184 +43,6 @@ public:
     }
 };
 
-/*
-class Player: protected Base
-{
-protected:
-    double speed;
-    double jumpForce;
-    double accel;
-
-
-
-
-public:
-    Player(double x, double y, double s, double j, double a)
-    {
-        cordX = x;
-        cordY = y;
-        speed = s;
-        jumpForce = j;
-        accel = a;
-
-        cout << "Created player object at x = " << cordX << " y = " << cordY <<endl<< "With speed = " << speed << " jumpForce = " << jumpForce << " and acceleration = " << accel<<endl;
-    }
-
-    Player()
-    {
-        cout << "Created empty player object" << endl;
-    }
-
-
-    void PrintState()
-    {
-        cout << "Player is at x = " << cordX << " y = " << cordY << endl << "With speed = " << speed << " jumpForce = " << jumpForce << " and acceleration = " << accel << endl;
-    }
-
-    bool UpdatePos()
-    {
-        bool changed = false;
-        if (speed > 1)
-        {
-            speed = 1;
-        }
-        else if (speed < -1)
-        {
-            speed = -1;
-        }
-
-        cordX += speed;
-
-        if (speed > 0)
-        {
-            if ((speed - FRICTION) < 0)
-            {
-                speed = 0.0;
-                changed = true;
-            }
-            else
-            {
-                speed -= FRICTION;
-                changed = true;
-            }
-        }
-        else if (speed < 0)
-        {
-            if ((speed + FRICTION) > 0)
-            {
-                speed = 0.0;
-                changed = true;
-            }
-            else
-            {
-                speed += FRICTION;
-                changed = true;
-            }
-        }
-
-        if (playerSizeY + cordY + GRAVITY < windowHeight)
-        {
-            cordY += GRAVITY;
-            changed = true;
-        }
-        else if (cordY < GRAVITY && cordY != 0)
-        {
-            cordY = 0.0;
-            changed = true;
-        }
-
-
-
-        return changed;
-    }
-
-    void Accelerate(int x)
-    {
-        if (x == 1)
-        {
-            speed = speed + accel;
-        }
-
-        else if (x == -1)     
-        {
-            speed = speed - accel;
-        }
-        else
-        {
-            cout << "Accelerate shouldnt be called now" << endl;
-        }
-    }
-
-    void Jump()
-    {
-        cordY -= jumpForce;
-    }
-
-
-
-    
-
-    
-
-
-
-    double X()
-    {
-        return cordX;
-    }
-    double Y()
-    {
-        return cordY;
-    }
-
-
-
-    double X2()
-    {
-        return cordX + playerSizeX;
-    }
-
-    double Y2()
-    {
-        return cordY + playerSizeY;
-    }
-
-    void ResetPlayer()
-    {
-        cordX = 0.;
-        cordY = 0.;
-        speed = 0;
-        jumpForce = 0.1;
-        accel = 0.01;
-    }
-
-    void SetX(double newX)
-    {
-        cordX = newX;
-        speed = 0;
-    }
-    
-    void SetY(double newY)
-    {
-        cordY = newY;
-    }
-    
-    
-    
-    
-    
-    ~Player()
-    {
-        cout << "Player object destroyed" << endl;
-    }
-
-
-
-
-
-    friend void collision(Player& gracz, Block* bloki, int n);
-};
-*/
 
 class Player : protected Base
 {
@@ -227,7 +51,7 @@ protected:
     double vertSpeed=0.0;  // vertical velocity
     double jumpForce;
     double accel;
-    bool grounded;
+    bool grounded=false;
 
 public:
     Player(double x, double y, double s, double j, double a)
@@ -285,25 +109,15 @@ public:
             changed = true;
         }
 
-        if (!grounded) // only apply gravity if not on ground
-        {
+        if (!grounded) {
             vertSpeed += GRAVITY;
             cordY += vertSpeed;
             changed = true;
         }
-        else
-        {
-            vertSpeed = 0; // reset vertical speed when grounded
+        else {
+            vertSpeed = 0; // standing still vertically
         }
 
-        // Prevent falling below window bottom
-        if (cordY + playerSizeY > windowHeight)
-        {
-            cordY = windowHeight - playerSizeY;
-            vertSpeed = 0;
-            grounded = true;
-            changed = true;
-        }
 
         return changed;
     }
@@ -321,9 +135,10 @@ public:
 
     void Jump()
     {
-        // Only jump if standing on something (vertSpeed == 0)
-        if (vertSpeed == 0)
-            vertSpeed = -jumpForce;
+        if (grounded) {
+            vertSpeed = -jumpForce;  // Jump upward
+            grounded = false;        // No longer grounded after jump
+        }
     }
 
     double X() { return cordX; }
@@ -367,10 +182,10 @@ public:
 
 class Block : protected Base
 {
-protected:
-    bool solid;
-public:
 
+    
+public:
+    bool solid;
     Block()
     {
         cout << "Block created" << endl;
@@ -468,59 +283,114 @@ void collision(Player& gracz, Block* bloki, int n)
 
 
 
+bool readValuesFromFile(const std::string& filename, int values[16]) {
+    ifstream file(filename);
+    if (!file) {
+        std::cerr << "Failed to open file.\n";
+        return false;
+    }
+
+    int count = 0;
+    char ch;
+    while (count < 16 && file >> noskipws >> ch) {
+        if (ch == 'X' || ch == 'x') {
+            values[count++] = 1;
+        }
+        else if (ch == 'O' || ch == 'o') {
+            values[count++] = -1;
+        }
+        else if (ch == 'E' || ch == 'e') {
+            values[count++] = 0;
+        }
+        // else ignore other characters (spaces, newlines, etc.)
+    }
+
+    if (count < 16) {
+        cerr << "File does not contain enough valid letters (X, O, or E).\n";
+        return false;
+    }
+    return true;
+}
+
+
+
+
 
 int main()
 {
+    int tab[16];
+    readValuesFromFile("info.txt", tab);
 
 
     using clock = std::chrono::steady_clock;
 
 
     //x,y,speed,jump,accel
-    Player gracz1(0, 200, 0, 0.5, 0.01);
+    Player gracz1(0, 400, 0, 0.3, 0.01);
     bool change;
    
-    int n = 16;
+    int n = 32;
     Block* Bloki;
     Bloki = (Block*)malloc(sizeof(Block) *n);
 
 
-    for (int i = 0; i < n-2; i++) // Dwa ostatnie block tylko chce testowaæ na ten moment
+    
+   
+
+    for (int i = 0; i < n-16; i++)
     {
-        Bloki[i] = Block(1000, 1000, false);
+        int r = i/4;
+        if (tab[i] == -1)
+        {
+            Bloki[i + 16] = Block(100 * (i % 4), 0 + 100 * r, false);
+        }
+        if (tab[i] == 1)
+        {
+            Bloki[i + 16] = Block(100 * (i % 4), 0 + 100 * r, true);
+        }
+        if (tab[i] == 0)
+        {
+            Bloki[i + 16] = Block(1000, 1000, true);
+        }
     }
-
-    Bloki[14] = Block(100, 200, true);
-    Bloki[15] = Block(200, 300, false);
+    
 
 
-    sf::RectangleShape TrueTest((sf::Vector2f(blockSizeX, blockSizeY)));
-    sf::RectangleShape FalseTest((sf::Vector2f(blockSizeX, blockSizeY)));
+    sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Gra");
 
-    TrueTest.setFillColor(sf::Color::Blue);
-    FalseTest.setFillColor(sf::Color::Red);
-
-
-    sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "SFML works!");
-
-    sf::CircleShape shape(100.f);
-    shape.setFillColor(sf::Color::Green);
+  
 
 
     sf::RectangleShape gracz(sf::Vector2f(playerSizeX, playerSizeY));
     gracz.setPosition(100, 100);
-    gracz.setFillColor(sf::Color::White);
+    gracz.setFillColor(sf::Color(255, 255, 255, 128));
 
 
-    //
-    TrueTest.setPosition(Bloki[14].X(), Bloki[14].Y());
-    FalseTest.setPosition(Bloki[15].X(), Bloki[15].Y());
-    //
+    
+    
+    {
+        //Ramka
+        Bloki[0] = Block(0, windowHeight, true); //Ground
+        Bloki[1] = Block(100, windowHeight, true);
+        Bloki[2] = Block(200, windowHeight, true);
+        Bloki[3] = Block(300, windowHeight, true);
 
-    sf::RectangleShape debugHitbox(sf::Vector2f(playerSizeX, playerSizeY));
-    debugHitbox.setPosition(gracz1.X(), gracz1.Y());
-    debugHitbox.setFillColor(sf::Color(255, 255, 255, 100)); // semi-transparent
+        Bloki[4] = Block(0, -100, true); // Top
+        Bloki[5] = Block(100, -100, true);
+        Bloki[6] = Block(200, -100, true);
+        Bloki[7] = Block(300, -100, true);
 
+        Bloki[8] = Block(-100, 0, true); // Left
+        Bloki[9] = Block(-100, 100, true);
+        Bloki[10] = Block(-100, 200, true);
+        Bloki[11] = Block(-100, 300, true);
+
+        Bloki[12] = Block(400, 0, true); // Right
+        Bloki[13] = Block(400, 100, true);
+        Bloki[14] = Block(400, 200, true);
+        Bloki[15] = Block(400, 300, true);
+
+    }
 
 
     while (window.isOpen())
@@ -532,7 +402,30 @@ int main()
 
 
         change = false;
-        if (GetKeyState('A') & 0x8000)
+
+
+
+        if ((GetKeyState('A') & 0x8000) && (GetKeyState('W') & 0x8000))
+        {
+            change = true;
+            gracz1.Accelerate(-1);
+            gracz1.Jump();
+            gracz1.UpdatePos();
+            collision(gracz1, Bloki, n);
+            gracz.setPosition(gracz1.X(), gracz1.Y());
+        }
+
+        else if ((GetKeyState('D') & 0x8000) && (GetKeyState('W') & 0x8000))
+        {
+            change = true;
+            gracz1.Accelerate(1);
+            gracz1.Jump();
+            gracz1.UpdatePos();
+            collision(gracz1, Bloki, n);
+            gracz.setPosition(gracz1.X(), gracz1.Y());
+        }
+
+        else if (GetKeyState('A') & 0x8000)
         {
             gracz1.Accelerate(-1);
             change = true;
@@ -540,7 +433,7 @@ int main()
             collision(gracz1, Bloki, n);
             gracz.setPosition(gracz1.X(), gracz1.Y());
         }
-        if (GetKeyState('D') & 0x8000)
+        else if (GetKeyState('D') & 0x8000)
         {
             gracz1.Accelerate(1);
             change = true;
@@ -549,7 +442,7 @@ int main()
             gracz.setPosition(gracz1.X(), gracz1.Y());
 
         }
-        if (GetKeyState('W') & 0x8000)
+        else if (GetKeyState('W') & 0x8000)
         {
             gracz1.Jump();
             change = true;
@@ -559,7 +452,7 @@ int main()
 
         }
         
-        if (GetKeyState('R') & 0x8000)
+        else if (GetKeyState('R') & 0x8000)
         {
             gracz1.ResetPlayer();
             change = true;
@@ -591,15 +484,20 @@ int main()
         }
 
         window.clear();
-        window.draw(shape);
-        window.draw(gracz);
-        window.draw(TrueTest);
-        window.draw(FalseTest);
+        
 
+        
+        for (int i = 0; i < n; i++) {
+            sf::RectangleShape blockRect(sf::Vector2f(blockSizeX, blockSizeY));
+            blockRect.setPosition(Bloki[i].X(), Bloki[i].Y());
+            blockRect.setFillColor(Bloki[i].solid ? sf::Color::Blue : sf::Color::Red);
+            window.draw(blockRect);
+        }
+        /*
         debugHitbox.setPosition(gracz1.X(), gracz1.Y());
         window.draw(debugHitbox);
-
-
+        */
+        window.draw(gracz);
         window.display();
 
 
